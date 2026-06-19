@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="ja">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>単位変換ドリル</title>
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#4CAF50">
+    <link rel="apple-touch-icon" href="icon-192.png">
+
+    <style>
+        body {
+            font-family: sans-serif;
+            text-align: center;
+            padding: 20px;
+            line-height: 1.6;
+        }
+
+        .menu,
+        .level-menu {
+            margin-bottom: 20px;
+        }
+
+        .level-btn {
+            background: #ff9800;
+            font-weight: bold;
+        }
+
+        .level-btn.active {
+            background: #e65100;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.5);
+        }
+
+        #question-box {
+            font-size: 32px;
+            margin: 30px;
+            padding: 40px;
+            border: 3px solid #333;
+            border-radius: 10px;
+            background-color: #f9f9f9;
+        }
+
+        #answer-area {
+            display: none;
+            margin-top: 20px;
+            color: #d32f2f;
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        #explanation {
+            margin: 10px;
+            font-size: 18px;
+            color: #555;
+            font-weight: normal;
+        }
+
+        button {
+            font-size: 18px;
+            padding: 10px 20px;
+            margin: 5px;
+            cursor: pointer;
+            border-radius: 8px;
+            border: none;
+            background: #4CAF50;
+            color: white;
+        }
+
+        .eval-btn {
+            background: #2196F3;
+        }
+
+        .reset-btn {
+            background: #f44336;
+            margin-top: 30px;
+        }
+
+        #counter-box {
+            margin-top: 40px;
+            font-size: 20px;
+            color: #333;
+            background: #fff3e0;
+            padding: 15px;
+            display: inline-block;
+            border-radius: 8px;
+            border: 1px solid #ffb74d;
+        }
+
+        .count-num {
+            font-size: 28px;
+            color: #e65100;
+            font-weight: bold;
+            padding: 0 5px;
+        }
+
+        #mode-badge {
+            display: inline-block;
+            padding: 5px 15px;
+            font-size: 16px;
+            border-radius: 20px;
+            margin-bottom: 10px;
+            font-weight: bold;
+        }
+
+        .normal-mode {
+            background: #e8f5e9;
+            color: #2e7d32;
+        }
+
+        .review-mode {
+            background: #ffebee;
+            color: #c62828;
+        }
+    </style>
+</head>
+
+<body>
+
+    <h1>単位変換ドリル</h1>
+
+    <div class="level-menu">
+        <button id="btn-lv1" class="level-btn active" onclick="selectLevel(1)">レベル1（基本：固定問題）</button>
+        <button id="btn-lv2" class="level-btn" onclick="selectLevel(2)">レベル2（応用：数値ランダム10問）</button>
+    </div>
+
+    <div class="menu">
+        <button onclick="selectCategory('length')">長さ</button>
+        <button onclick="selectCategory('weight')">重さ</button>
+        <button onclick="selectCategory('volume')">体積・かさ</button>
+        <button onclick="selectCategory('area')">面積</button>
+        <button onclick="selectCategory('time')">時間</button>
+    </div>
+
+    <div id="mode-badge" style="display:none;"></div>
+    <div id="question-box">レベルとカテゴリーを選んでください</div>
+
+    <div id="action-area" style="display:none;">
+        <button id="answer-btn" onclick="showAnswer()">答え合わせ</button>
+        <div id="eval-area" style="display:none;">
+            <button class="eval-btn" onclick="saveResult(true)">できた！</button>
+            <button class="eval-btn" onclick="saveResult(false)">できなかった…</button>
+        </div>
+    </div>
+
+    <div id="answer-area">
+        <div id="answer-text"></div>
+        <div id="explanation"></div>
+    </div>
+
+    <div>
+        <button class="reset-btn" onclick="resetData()">学習データをクリアする</button>
+    </div>
+
+    <div id="counter-box">
+        現在の苦手な問題の数: <span id="wrong-count" class="count-num">0</span> 問
+    </div>
+    <script src="data.js"></script>
+    <script>
+
+
+        function generateRandomValue(type) {
+            if (type === "mul") {
+                const choices = [2, 3, 5, 8, 12, 0.5, 1.5, 2.5];
+                return choices[Math.floor(Math.random() * choices.length)];
+            } else {
+                const choices = [30, 60, 120, 500, 1500, 2000, 4500, 180];
+                return choices[Math.floor(Math.random() * choices.length)];
+            }
+        }
+
+        function generateLv2Questions(cat) {
+            let questions = [];
+            let blueprints = lv2Blueprints[cat];
+            for (let i = 0; i < 10; i++) {
+                let bp = blueprints[Math.floor(Math.random() * blueprints.length)];
+                let val = generateRandomValue(bp.type);
+                let ansValue;
+                let expText = "";
+                if (bp.type === "mul") {
+                    ansValue = parseFloat((val * bp.rate).toFixed(6));
+                    expText = `${val} × ${bp.rate} = ${ansValue}${bp.to} になります。`;
+                } else {
+                    ansValue = parseFloat((val / bp.rate).toFixed(6));
+                    expText = `${val} ÷ ${bp.rate} = ${ansValue}${bp.to} になります。`;
+                }
+                questions.push({
+                    q: `${val}${bp.from} = ? ${bp.to}`,
+                    a: `${ansValue}${bp.to}`,
+                    exp: `${bp.from}から${bp.to}へ変換するには、${bp.type === "mul" ? bp.rate + "倍します" : bp.rate + "で割ります"}。 ${expText}`
+                });
+            }
+            return questions;
+        }
+
+        let currentLevel = 1;
+        let wrongList = JSON.parse(localStorage.getItem('wrongList_v3')) || [];
+        let currentCategory = '';
+        let currentPool = [];
+        let currentProblem = null;
+        let isReviewMode = false;
+        let activeLv2DataForSession = [];
+
+        updateCounter();
+
+        function selectLevel(lv) {
+            currentLevel = lv;
+            document.getElementById('btn-lv1').classList.toggle('active', lv === 1);
+            document.getElementById('btn-lv2').classList.toggle('active', lv === 2);
+            if (currentCategory) selectCategory(currentCategory);
+        }
+
+        function selectCategory(cat) {
+            currentCategory = cat;
+            isReviewMode = false;
+            if (currentLevel === 1) {
+                currentPool = [...dataLv1[cat]].sort(() => Math.random() - 0.5);
+            } else {
+                activeLv2DataForSession = generateLv2Questions(cat);
+                currentPool = [...activeLv2DataForSession];
+            }
+            document.getElementById('action-area').style.display = 'block';
+            document.getElementById('answer-area').style.display = 'none';
+            pickNextQuestion();
+        }
+
+        function pickNextQuestion() {
+            const badge = document.getElementById('mode-badge');
+            badge.style.display = 'inline-block';
+            const activeData = (currentLevel === 1) ? dataLv1[currentCategory] : activeLv2DataForSession;
+
+            if (currentPool.length === 0) {
+                let wrongInCat = [];
+                if (currentLevel === 1) {
+                    wrongInCat = dataLv1[currentCategory].filter(p => wrongList.includes(`L1_${p.q}`));
+                } else {
+                    wrongInCat = activeLv2DataForSession.filter(p => wrongList.includes(`L2_${p.q}`));
+                }
+                if (wrongInCat.length > 0) {
+                    isReviewMode = true;
+                    currentPool = [...wrongInCat].sort(() => Math.random() - 0.5);
+                } else {
+                    badge.style.display = 'none';
+                    document.getElementById('action-area').style.display = 'none';
+                    document.getElementById('answer-area').style.display = 'none';
+                    document.getElementById('question-box').innerHTML = `🎉おめでとうございます！<br>レベル ${currentLevel} のこのカテゴリーには苦手がなくなりました！`;
+                    return;
+                }
+            }
+
+            if (isReviewMode) {
+                badge.innerText = `レベル${currentLevel}：苦手復習モード`;
+                badge.className = "review-mode";
+            } else {
+                badge.innerText = `レベル${currentLevel}：1周目チャレンジ`;
+                badge.className = "normal-mode";
+            }
+
+            currentProblem = currentPool.shift();
+            document.getElementById('question-box').innerText = currentProblem.q;
+            document.getElementById('answer-btn').style.display = 'inline-block';
+            document.getElementById('eval-area').style.display = 'none';
+            document.getElementById('answer-area').style.display = 'none';
+        }
+
+        function showAnswer() {
+            document.getElementById('answer-text').innerText = "答え: " + currentProblem.a;
+            document.getElementById('explanation').innerText = "解説: " + currentProblem.exp;
+            document.getElementById('answer-area').style.display = 'block';
+            document.getElementById('answer-btn').style.display = 'none';
+            document.getElementById('eval-area').style.display = 'inline-block';
+        }
+
+        function saveResult(isCorrect) {
+            const problemKey = `L${currentLevel}_${currentProblem.q}`;
+            if (isCorrect) {
+                wrongList = wrongList.filter(q => q !== problemKey);
+            } else {
+                if (!wrongList.includes(problemKey)) {
+                    wrongList.push(problemKey);
+                }
+            }
+            localStorage.setItem('wrongList_v3', JSON.stringify(wrongList));
+            updateCounter();
+            pickNextQuestion();
+        }
+
+        function updateCounter() {
+            document.getElementById('wrong-count').innerText = wrongList.length;
+        }
+
+        function resetData() {
+            if (confirm("すべての学習記録をリセットしますか？")) {
+                wrongList = [];
+                localStorage.removeItem('wrongList_v3');
+                updateCounter();
+                isReviewMode = false;
+                alert("リセットしました。");
+                document.getElementById('mode-badge').style.display = 'none';
+                document.getElementById('action-area').style.display = 'none';
+                document.getElementById('answer-area').style.display = 'none';
+                document.getElementById('question-box').innerText = "レベルとカテゴリーを選んでください";
+            }
+        }
+
+        // サービスワーカーの登録スクリプト
+        if ('serviceWorker' in navigator) {
+            navigator.serviceWorker.register('sw.js')
+                .then(() => console.log('Service Worker Registered'))
+                .catch(err => console.error('Service Worker Failed', err));
+        }
+    </script>
+</body>
+
+</html>
